@@ -1,0 +1,20 @@
+Bot Information
+OWNER_NAME="᚛SHUKRANI R RAY᚜"
+PREFIX="~"
+PUBLIC_MODE="non"
+AUTO_READ_STATUS="non"
+AUTO_DOWNLOAD_STATUS="oui"
+BOT_NAME="SHUKRANI-MD"
+IMAGE_MENU="https://static.animecorner.me/2023/08/op2.jpg"
+NUMERO_OWNER="255773350309@s.whatsapp.net"
+
+PostgreSQL from Render
+DATABASE_URL="postgresql://shukrani_md_user:AZnkDX5CP9dVQEKm6ypCEijCjqZodiEw@dpg-d1i2980dl3ps73b3m4mg-a.oregon-postgres.render.com/shukrani_md"
+
+Warning and API
+WARN_COUNT="5"
+OPENAI_API_KEY=""
+
+Other Settings
+STARTING_BOT_MESSAGE="yes"
+ANTI_DELETE_MESSAGE="yes"
