@@ -1,0 +1,40 @@
+
+
+*# Ignore unwanted folders and files on GitHub*
+
+*# Node modules*  
+`node_modules/`
+
+*# Environment variables file*  
+`.env`
+
+*# WhatsApp session (Baileys authentication)*  
+`session/`  
+`auth_info.json`  
+`auth/`
+
+*# Logs*  
+`*.log`  
+`logs/`  
+`npm-debug.log*`
+
+*# VS Code settings*  
+`.vscode/`
+
+*# System files (OS)*  
+`.DS_Store`  
+`Thumbs.db`
+
+*# PM2 logs (if you're using PM2)*  
+`pids/`  
+`*.pid`  
+`*.seed`
+
+*# Backup files*  
+`*.bak`  
+`*.swp`  
+`*.swo`
+
+---
+
+You can place these in a `.gitignore` file to prevent Git from uploading them to your repository.
