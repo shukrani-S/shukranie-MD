@@ -1,4 +1,4 @@
-// ðŸ“ utils/isOwner.js
+// 📁 raymond/isOwner.js
 const control = require('../control');
 
 function isOwner(m) {
