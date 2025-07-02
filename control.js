@@ -35,6 +35,7 @@ const fs = require('fs');
 const P = require('pino');
 const qrcode = require('qrcode-terminal');
 const { getSetting } = require('./database/settings');
+const { addWarning, resetWarning, getWarnings } = require('./database/warnStore');
 
 // Load commands
 const commands = {};
@@ -104,6 +105,38 @@ async function startBot() {
       await command.execute(sock, m, args.slice(1));
     } catch (err) {
       console.error('❌ Error executing command:', err);
+    }
+
+    // Link protection
+    const groupId = m.key.remoteJid;
+    const senderId = m.key.participant;
+    const text = msgText;
+    const isLink = /https?:\/\/[^\s]+/gi.test(text);
+
+    const antilink = await getSetting('antilink');
+    const warnMode = await getSetting('antilinkwarn');
+
+    if (antilink !== 'on' || !isLink) return;
+
+    if (warnMode === 'on') {
+      const warnCount = addWarning(groupId, senderId);
+
+      if (warnCount < 2) {
+        await sock.sendMessage(groupId, {
+          text: `⚠️ Warning ${warnCount}/2: Sharing links is not allowed! One more and you'll be removed.`
+        });
+      } else {
+        resetWarning(groupId, senderId);
+        await sock.groupParticipantsUpdate(groupId, [senderId], 'remove');
+        await sock.sendMessage(groupId, {
+          text: '🚫 User removed for repeatedly sharing links. Power by SHUKRANI-MD.'
+        });
+      }
+    } else {
+      await sock.groupParticipantsUpdate(groupId, [senderId], 'remove');
+      await sock.sendMessage(groupId, {
+        text: '🚫 Share link not allowed! Power by SHUKRANI-MD.'
+      });
     }
   });
 }
