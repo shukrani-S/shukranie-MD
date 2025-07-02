@@ -1,92 +1,150 @@
-// 📁 control.js // ----------------- CONFIGURATION ----------------- module.exports = { site: { name: '🌐 SHUKRANI Bot Pairing', description: 'Scan QR code or use the pairing code below to connect your WhatsApp bot.', version: '2.0.0', },
+// 📁 control.js
 
-bot: { botName: 'SHUKRANI-MD', ownerName: 'Raymond Kimath', sessionPath: './session/shukranie.json', },
+// ----------------- CONFIGURATION -----------------
+module.exports = {
+  site: {
+    name: '🌐 SHUKRANI Bot Pairing',
+    description: 'Scan QR code or use the pairing code below to connect your WhatsApp bot.',
+    version: '2.0.0',
+  },
 
-database: { enabled: true, type: 'postgresql', url: process.env.DATABASE_URL || '', // optional },
+  bot: {
+    botName: 'SHUKRANI-MD',
+    ownerName: 'Raymond Kimath',
+    sessionPath: './session/shukranie.json',
+  },
 
-features: { commandSystem: true, prefixlessCommands: true, alwaysOnline: true, ownerOnlyMode: false, antilink: true // ✅ Added antilink toggle here }, };
+  database: {
+    enabled: true,
+    type: 'postgresql',
+    url: process.env.DATABASE_URL || '', // optional
+  },
 
-// ----------------- BOT LOGIC ----------------- const { default: makeWASocket, useSingleFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys'); const { Boom } = require('@hapi/boom'); const path = require('path'); const fs = require('fs'); const P = require('pino'); const qrcode = require('qrcode-terminal'); const { getSetting } = require('./database/settings'); const { addWarning, resetWarning } = require('./database/warnStore'); const { isWhitelisted } = require('./commands/whitelist');
+  features: {
+    commandSystem: true,
+    prefixlessCommands: true,
+    alwaysOnline: true,
+    ownerOnlyMode: false,
+    antilink: true // ✅ Added antilink toggle here
+  },
+};
 
-// Load commands const commands = {}; const commandsPath = path.join(__dirname, 'commands'); fs.readdirSync(commandsPath).forEach(file => { if (file.endsWith('.js')) { const command = require(path.join(commandsPath, file)); commands[command.name] = command; } });
+// ----------------- BOT LOGIC -----------------
+const { default: makeWASocket, useSingleFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { Boom } = require('@hapi/boom');
+const path = require('path');
+const fs = require('fs');
+const P = require('pino');
+const qrcode = require('qrcode-terminal');
+const { getSetting } = require('./database/settings');
+const { addWarning, resetWarning } = require('./database/warnStore');
+const { isWhitelisted } = require('./commands/whitelist');
 
-// Auth state const { state, saveState } = useSingleFileAuthState('./session/shukranie.json');
-
-async function startBot() { const { version } = await fetchLatestBaileysVersion(); const sock = makeWASocket({ version, auth: state, printQRInTerminal: true, browser: ['SHUKRANI-MD', 'Chrome', '1.0.0'], logger: P({ level: 'silent' }) });
-
-sock.ev.on('connection.update', ({ connection, lastDisconnect }) => { if (connection === 'close') { const shouldReconnect = (lastDisconnect.error = Boom)?.output?.statusCode !== DisconnectReason.loggedOut; if (shouldReconnect) startBot(); } else if (connection === 'open') { console.log('✅ SHUKRANI-MD bot connected.'); } });
-
-sock.ev.on('creds.update', saveState);
-
-sock.ev.on('messages.upsert', async ({ messages }) => { const m = messages[0]; if (!m.message || m.key.fromMe) return;
-
-const msgText = m.message.conversation || m.message.extendedTextMessage?.text || '';
-let commandText = msgText.trim();
-
-const commandsMode = await getSetting('commands_mode');
-if (commandsMode === 'off') return;
-
-const prefix = await getSetting('prefix');
-const isPrefixMode = prefix === 'yes';
-
-if (isPrefixMode) {
-  if (!commandText.startsWith('.')) return;
-  commandText = commandText.slice(1);
-}
-
-const args = commandText.split(/\s+/);
-const commandName = args[0]?.toLowerCase();
-const flexibleCommands = ['autotyping', 'autorecord', 'alwaysonline', 'autoreacting', 'autorecordtyping', 'settings'];
-
-if (flexibleCommands.includes(commandName)) {
-  const settingsCommand = commands['settings'];
-  if (settingsCommand) return await settingsCommand.execute(sock, m, args);
-}
-
-const command = commands[commandName];
-if (command) {
-  try {
-    await command.execute(sock, m, args.slice(1));
-  } catch (err) {
-    console.error('❌ Error executing command:', err);
+// ----------------- LOAD COMMANDS -----------------
+const commands = {};
+const commandsPath = path.join(__dirname, 'commands');
+fs.readdirSync(commandsPath).forEach(file => {
+  if (file.endsWith('.js')) {
+    const command = require(path.join(commandsPath, file));
+    commands[command.name] = command;
   }
-}
+});
 
-// ----------------- ANTILINK -----------------
-const groupId = m.key.remoteJid;
-const senderId = m.key.participant;
-const text = msgText;
-const isLink = /https?:\/\/[^\s]+/gi.test(text);
+// ----------------- AUTH STATE -----------------
+const { state, saveState } = useSingleFileAuthState('./session/shukranie.json');
 
-const antilink = await getSetting('antilink');
-const warnMode = await getSetting('antilinkwarn');
-const isAllowed = await isWhitelisted(senderId);
+// ----------------- START BOT -----------------
+async function startBot() {
+  const { version } = await fetchLatestBaileysVersion();
+  const sock = makeWASocket({
+    version,
+    auth: state,
+    printQRInTerminal: true,
+    browser: ['SHUKRANI-MD', 'Chrome', '1.0.0'],
+    logger: P({ level: 'silent' })
+  });
 
-if (antilink !== 'on' || !isLink || isAllowed) return;
+  sock.ev.on('connection.update', ({ connection, lastDisconnect }) => {
+    if (connection === 'close') {
+      const shouldReconnect = (lastDisconnect.error = Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+      if (shouldReconnect) startBot();
+    } else if (connection === 'open') {
+      console.log('✅ SHUKRANI-MD bot connected.');
+    }
+  });
 
-if (warnMode === 'on') {
-  const warnCount = addWarning(groupId, senderId);
+  sock.ev.on('creds.update', saveState);
 
-  if (warnCount < 2) {
-    await sock.sendMessage(groupId, {
-      text: `⚠️ Warning ${warnCount}/2: Sharing links is not allowed! One more and you'll be removed.`
-    });
-  } else {
-    resetWarning(groupId, senderId);
-    await sock.groupParticipantsUpdate(groupId, [senderId], 'remove');
-    await sock.sendMessage(groupId, {
-      text: '🚫 User removed for repeatedly sharing links. Power by SHUKRANI-MD.'
-    });
-  }
-} else {
-  await sock.groupParticipantsUpdate(groupId, [senderId], 'remove');
-  await sock.sendMessage(groupId, {
-    text: '🚫 Share link not allowed! Power by SHUKRANI-MD.'
+  sock.ev.on('messages.upsert', async ({ messages }) => {
+    const m = messages[0];
+    if (!m.message || m.key.fromMe) return;
+
+    const msgText = m.message.conversation || m.message.extendedTextMessage?.text || '';
+    let commandText = msgText.trim();
+
+    const commandsMode = await getSetting('commands_mode');
+    if (commandsMode === 'off') return;
+
+    const prefix = await getSetting('prefix');
+    const isPrefixMode = prefix === 'yes';
+
+    if (isPrefixMode) {
+      if (!commandText.startsWith('.')) return;
+      commandText = commandText.slice(1);
+    }
+
+    const args = commandText.split(/\s+/);
+    const commandName = args[0]?.toLowerCase();
+    const flexibleCommands = ['autotyping', 'autorecord', 'alwaysonline', 'autoreacting', 'autorecordtyping', 'settings'];
+
+    if (flexibleCommands.includes(commandName)) {
+      const settingsCommand = commands['settings'];
+      if (settingsCommand) return await settingsCommand.execute(sock, m, args);
+    }
+
+    const command = commands[commandName];
+    if (command) {
+      try {
+        await command.execute(sock, m, args.slice(1));
+      } catch (err) {
+        console.error('❌ Error executing command:', err);
+      }
+    }
+
+    // ----------------- ANTILINK -----------------
+    const groupId = m.key.remoteJid;
+    const senderId = m.key.participant;
+    const text = msgText;
+    const isLink = /https?:\/\/[^\s]+/gi.test(text);
+
+    const antilink = await getSetting('antilink');
+    const warnMode = await getSetting('antilinkwarn');
+    const isAllowed = await isWhitelisted(senderId);
+
+    if (antilink !== 'on' || !isLink || isAllowed) return;
+
+    if (warnMode === 'on') {
+      const warnCount = addWarning(groupId, senderId);
+
+      if (warnCount < 2) {
+        await sock.sendMessage(groupId, {
+          text: `⚠️ Warning ${warnCount}/2: Sharing links is not allowed! One more and you'll be removed.`
+        });
+      } else {
+        resetWarning(groupId, senderId);
+        await sock.groupParticipantsUpdate(groupId, [senderId], 'remove');
+        await sock.sendMessage(groupId, {
+          text: '🚫 User removed for repeatedly sharing links. Power by SHUKRANI-MD.'
+        });
+      }
+    } else {
+      await sock.groupParticipantsUpdate(groupId, [senderId], 'remove');
+      await sock.sendMessage(groupId, {
+        text: '🚫 Share link not allowed! Power by SHUKRANI-MD.'
+      });
+    }
+    // ----------------- END ANTILINK -----------------
   });
 }
-// ----------------- END ANTILINK -----------------
-
-}); }
 
 startBot();
-
