@@ -45,6 +45,16 @@ const { getSetting } = require('./database/settings');
 const { addWarning, resetWarning } = require('./database/warnStore');
 const { isWhitelisted } = require('./commands/whitelist');
 const cleanTempFolder = require('./raymond/cleaner/cleanTemp');
+const connectDB = require('./database/connection');
+
+// ----------------- CHECK DATABASE EARLY -----------------
+(async () => {
+  const db = await connectDB();
+  if (!db) {
+    console.log('⚠️ Database connection failed. Bot will run in limited mode.');
+    global.nodb = true;
+  }
+})();
 
 // Run once when bot starts
 cleanTempFolder();
@@ -104,56 +114,4 @@ async function startBot() {
 
     const args = commandText.split(/\s+/);
     const commandName = args[0]?.toLowerCase();
-    const flexibleCommands = ['autotyping', 'autorecord', 'alwaysonline', 'autoreacting', 'autorecordtyping', 'settings'];
-
-    if (flexibleCommands.includes(commandName)) {
-      const settingsCommand = commands['settings'];
-      if (settingsCommand) return await settingsCommand.execute(sock, m, args);
-    }
-
-    const command = commands[commandName];
-    if (command) {
-      try {
-        await command.execute(sock, m, args.slice(1));
-      } catch (err) {
-        console.error('❌ Error executing command:', err);
-      }
-    }
-
-    // ----------------- ANTILINK -----------------
-    const groupId = m.key.remoteJid;
-    const senderId = m.key.participant;
-    const text = msgText;
-    const isLink = /https?:\/\/[^\s]+/gi.test(text);
-
-    const antilink = await getSetting('antilink');
-    const warnMode = await getSetting('antilinkwarn');
-    const isAllowed = await isWhitelisted(senderId);
-
-    if (antilink !== 'on' || !isLink || isAllowed) return;
-
-    if (warnMode === 'on') {
-      const warnCount = addWarning(groupId, senderId);
-
-      if (warnCount < 2) {
-        await sock.sendMessage(groupId, {
-          text: `⚠️ Warning ${warnCount}/2: Sharing links is not allowed! One more and you'll be removed.`
-        });
-      } else {
-        resetWarning(groupId, senderId);
-        await sock.groupParticipantsUpdate(groupId, [senderId], 'remove');
-        await sock.sendMessage(groupId, {
-          text: '🚫 User removed for repeatedly sharing links. Powered by SHUKRANI-MD.'
-        });
-      }
-    } else {
-      await sock.groupParticipantsUpdate(groupId, [senderId], 'remove');
-      await sock.sendMessage(groupId, {
-        text: '🚫 Share link not allowed! Powered by SHUKRANI-MD.'
-      });
-    }
-    // ----------------- END ANTILINK -----------------
-  });
-}
-
-startBot();
+    const
