@@ -1,20 +1,29 @@
 // 📁 raymond/cleaner/cleanTemp.js
-const fs = require('fs-extra');
+const fs = require('fs');
 const path = require('path');
 
+// Path to the temp folder
 const tempDir = path.join(__dirname, '../../temp');
 
-async function cleanTemp() {
-  try {
-    const files = await fs.readdir(tempDir);
+// Create the temp folder if it doesn't exist
+if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+
+/**
+ * Clean all files inside the temp/ directory
+ */
+function clearTempFolder() {
+  fs.readdir(tempDir, (err, files) => {
+    if (err) return console.error('❌ Error reading temp folder:', err);
+    
     for (const file of files) {
       const filePath = path.join(tempDir, file);
-      await fs.remove(filePath);
+      fs.unlink(filePath, err => {
+        if (err) console.error(`❌ Failed to delete ${filePath}:`, err);
+      });
     }
-    console.log(`[⏰] Temp folder cleaned at ${new Date().toLocaleTimeString()}`);
-  } catch (err) {
-    console.error('❌ Error cleaning temp folder:', err);
-  }
+
+    console.log('🧹 Temp folder cleaned successfully!');
+  });
 }
 
-module.exports = cleanTemp;
+module.exports = clearTempFolder;
