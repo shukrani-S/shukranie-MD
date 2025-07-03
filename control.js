@@ -11,7 +11,7 @@ module.exports = {
   bot: {
     botName: 'SHUKRANI-MD',
     ownerName: 'Raymond Kimath',
-    sessionPath: './session/shukranie.json',
+    sessionPath: './session', // Changed for multi-file auth
   },
 
   database: {
@@ -25,12 +25,17 @@ module.exports = {
     prefixlessCommands: true,
     alwaysOnline: true,
     ownerOnlyMode: false,
-    antilink: true // ✅ Added antilink toggle here
+    antilink: true
   },
 };
 
-// ----------------- BOT LOGIC -----------------
-const { default: makeWASocket, useSingleFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+// ----------------- DEPENDENCIES -----------------
+const {
+  default: makeWASocket,
+  useMultiFileAuthState,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+} = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const path = require('path');
 const fs = require('fs');
@@ -39,14 +44,10 @@ const qrcode = require('qrcode-terminal');
 const { getSetting } = require('./database/settings');
 const { addWarning, resetWarning } = require('./database/warnStore');
 const { isWhitelisted } = require('./commands/whitelist');
-
-// ✅ Import the temp cleaner
 const cleanTempFolder = require('./raymond/cleaner/cleanTemp');
 
 // Run once when bot starts
 cleanTempFolder();
-
-// Optional: auto-clean every 1 hour (3600000 ms)
 setInterval(cleanTempFolder, 60 * 60 * 1000);
 
 // ----------------- LOAD COMMANDS -----------------
@@ -59,12 +60,11 @@ fs.readdirSync(commandsPath).forEach(file => {
   }
 });
 
-// ----------------- AUTH STATE -----------------
-const { state, saveState } = useSingleFileAuthState('./session/shukranie.json');
-
 // ----------------- START BOT -----------------
 async function startBot() {
+  const { state, saveCreds } = await useMultiFileAuthState('./session');
   const { version } = await fetchLatestBaileysVersion();
+
   const sock = makeWASocket({
     version,
     auth: state,
@@ -82,7 +82,7 @@ async function startBot() {
     }
   });
 
-  sock.ev.on('creds.update', saveState);
+  sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const m = messages[0];
@@ -143,13 +143,13 @@ async function startBot() {
         resetWarning(groupId, senderId);
         await sock.groupParticipantsUpdate(groupId, [senderId], 'remove');
         await sock.sendMessage(groupId, {
-          text: '🚫 User removed for repeatedly sharing links. Power by SHUKRANI-MD.'
+          text: '🚫 User removed for repeatedly sharing links. Powered by SHUKRANI-MD.'
         });
       }
     } else {
       await sock.groupParticipantsUpdate(groupId, [senderId], 'remove');
       await sock.sendMessage(groupId, {
-        text: '🚫 Share link not allowed! Power by SHUKRANI-MD.'
+        text: '🚫 Share link not allowed! Powered by SHUKRANI-MD.'
       });
     }
     // ----------------- END ANTILINK -----------------
