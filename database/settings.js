@@ -1,13 +1,17 @@
-const db = require('./db'); // PostgreSQL connection file
+// 📁 database/settings.js
+
+const dbPromise = require('./db'); // DB with retry logic
 
 // Read a single setting
 async function getSetting(key) {
+  const db = await dbPromise;
   const res = await db.query('SELECT value FROM settings WHERE key = $1', [key]);
   return res.rows[0]?.value || null;
 }
 
 // Insert or update a setting
 async function setSetting(key, value) {
+  const db = await dbPromise;
   await db.query(`
     INSERT INTO settings (key, value)
     VALUES ($1, $2)
@@ -23,7 +27,7 @@ async function ensureDefaults() {
     anti_delete: 'yes',
     antilink_kick: 'no',
     antibug: 'no',
-    prefix: 'off' // you can also add default prefix here
+    prefix: 'off'
   };
 
   for (const [key, value] of Object.entries(defaultSettings)) {
