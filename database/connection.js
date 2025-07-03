@@ -1,35 +1,44 @@
 const { Sequelize } = require('sequelize');
 
+let sequelize;
+let connected = false;
+let attempt = 0;
 const MAX_RETRIES = 10;
-const RETRY_DELAY_MS = 5000; // 5 seconds
 
-async function createConnectionWithRetry(retries = MAX_RETRIES) {
-  for (let i = 0; i < retries; i++) {
+async function connectDB() {
+  const DB_URL = process.env.DATABASE_URL;
+
+  if (!DB_URL) {
+    console.warn("⚠️ DATABASE_URL not set. Skipping DB connection.");
+    return null;
+  }
+
+  sequelize = new Sequelize(DB_URL, {
+    dialect: 'postgres',
+    logging: false,
+    dialectOptions: {
+      ssl: { require: true, rejectUnauthorized: false }
+    }
+  });
+
+  while (!connected && attempt < MAX_RETRIES) {
     try {
-      const sequelize = new Sequelize(process.env.DATABASE_URL, {
-        dialect: 'postgres',
-        logging: false,
-        dialectOptions: {
-          ssl: {
-            require: true,
-            rejectUnauthorized: false
-          }
-        }
-      });
-
+      attempt++;
       await sequelize.authenticate();
-      console.log('✅ PostgreSQL connected successfully.');
-      return sequelize;
+      connected = true;
+      console.log('✅ Connected to PostgreSQL database.');
     } catch (err) {
-      console.error(`🔁 PostgreSQL connection failed (attempt ${i + 1}/${retries}):`, err.message);
-      if (i < retries - 1) {
-        await new Promise(res => setTimeout(res, RETRY_DELAY_MS));
-      } else {
-        console.error('❌ All retry attempts failed. Exiting...');
-        process.exit(1);
-      }
+      console.error(`🔁 DB connection failed (attempt ${attempt}/${MAX_RETRIES}):`, err.message);
+      await new Promise(res => setTimeout(res, 2000));
     }
   }
+
+  if (!connected) {
+    console.error('❌ All retry attempts failed. Running in no-DB mode...');
+    return null;
+  }
+
+  return sequelize;
 }
 
-module.exports = createConnectionWithRetry();
+module.exports = connectDB;
