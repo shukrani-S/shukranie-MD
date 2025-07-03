@@ -40,6 +40,30 @@ const { getSetting } = require('./database/settings');
 const { addWarning, resetWarning } = require('./database/warnStore');
 const { isWhitelisted } = require('./commands/whitelist');
 
+// ----------------- TEMP CLEANUP (EVERY HOUR) -----------------
+const cron = require('node-cron');
+const tempDir = path.join(__dirname, 'temp');
+
+if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+
+function clearTempFolder() {
+  fs.readdir(tempDir, (err, files) => {
+    if (err) return console.error('❌ Error reading temp folder:', err);
+    for (const file of files) {
+      const filePath = path.join(tempDir, file);
+      fs.unlink(filePath, err => {
+        if (err) console.error(`❌ Failed to delete ${filePath}:`, err);
+      });
+    }
+    console.log('🧹 Temp folder cleaned successfully!');
+  });
+}
+
+cron.schedule('0 * * * *', () => {
+  console.log('🕐 Running hourly temp folder cleanup...');
+  clearTempFolder();
+});
+
 // ----------------- LOAD COMMANDS -----------------
 const commands = {};
 const commandsPath = path.join(__dirname, 'commands');
@@ -125,7 +149,6 @@ async function startBot() {
 
     if (warnMode === 'on') {
       const warnCount = addWarning(groupId, senderId);
-
       if (warnCount < 2) {
         await sock.sendMessage(groupId, {
           text: `⚠️ Warning ${warnCount}/2: Sharing links is not allowed! One more and you'll be removed.`
