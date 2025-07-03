@@ -68,7 +68,7 @@
     "translatte": "^3.0.1",
     "wa-sticker-formatter": "^4.4.4",
     "wikipedia": "^2.1.2",  
-    "yt-search": "^2.10.4"
-   
+    "yt-search": "^2.10.4",
+    "qrcode-terminal": "^0.12.0"
   }
-  }
+}
