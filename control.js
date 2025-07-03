@@ -40,29 +40,14 @@ const { getSetting } = require('./database/settings');
 const { addWarning, resetWarning } = require('./database/warnStore');
 const { isWhitelisted } = require('./commands/whitelist');
 
-// ----------------- TEMP CLEANUP (EVERY HOUR) -----------------
-const cron = require('node-cron');
-const tempDir = path.join(__dirname, 'temp');
+// ✅ Import the temp cleaner
+const cleanTempFolder = require('./raymond/cleaner/cleanTemp');
 
-if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+// Run once when bot starts
+cleanTempFolder();
 
-function clearTempFolder() {
-  fs.readdir(tempDir, (err, files) => {
-    if (err) return console.error('❌ Error reading temp folder:', err);
-    for (const file of files) {
-      const filePath = path.join(tempDir, file);
-      fs.unlink(filePath, err => {
-        if (err) console.error(`❌ Failed to delete ${filePath}:`, err);
-      });
-    }
-    console.log('🧹 Temp folder cleaned successfully!');
-  });
-}
-
-cron.schedule('0 * * * *', () => {
-  console.log('🕐 Running hourly temp folder cleanup...');
-  clearTempFolder();
-});
+// Optional: auto-clean every 1 hour (3600000 ms)
+setInterval(cleanTempFolder, 60 * 60 * 1000);
 
 // ----------------- LOAD COMMANDS -----------------
 const commands = {};
@@ -149,6 +134,7 @@ async function startBot() {
 
     if (warnMode === 'on') {
       const warnCount = addWarning(groupId, senderId);
+
       if (warnCount < 2) {
         await sock.sendMessage(groupId, {
           text: `⚠️ Warning ${warnCount}/2: Sharing links is not allowed! One more and you'll be removed.`
